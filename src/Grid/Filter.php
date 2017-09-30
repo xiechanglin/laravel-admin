@@ -6,17 +6,25 @@ use Encore\Admin\Facades\Admin;
 use Encore\Admin\Grid\Filter\AbstractFilter;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Request;
-use ReflectionClass;
 
 /**
  * Class Filter.
  *
- * @method Filter     equal($column, $label = '')
- * @method Filter     like($column, $label = '')
- * @method Filter     gt($column, $label = '')
- * @method Filter     lt($column, $label = '')
- * @method Filter     between($column, $label = '')
- * @method Filter     where(\Closure $callback, $label)
+ * @method AbstractFilter     equal($column, $label = '')
+ * @method AbstractFilter     notEqual($column, $label = '')
+ * @method AbstractFilter     like($column, $label = '')
+ * @method AbstractFilter     ilike($column, $label = '')
+ * @method AbstractFilter     gt($column, $label = '')
+ * @method AbstractFilter     lt($column, $label = '')
+ * @method AbstractFilter     between($column, $label = '')
+ * @method AbstractFilter     in($column, $label = '')
+ * @method AbstractFilter     notIn($column, $label = '')
+ * @method AbstractFilter     where($callback, $label)
+ * @method AbstractFilter     date($column, $label = '')
+ * @method AbstractFilter     day($column, $label = '')
+ * @method AbstractFilter     month($column, $label = '')
+ * @method AbstractFilter     year($column, $label = '')
+ * @method AbstractFilter     hidden($name, $value)
  */
 class Filter
 {
@@ -33,14 +41,10 @@ class Filter
     /**
      * @var array
      */
-    protected $supports = ['equal', 'is', 'like', 'gt', 'lt', 'between', 'where'];
-
-    /**
-     * If use a modal to hold the filters.
-     *
-     * @var bool
-     */
-    protected $useModal = false;
+    protected $supports = [
+        'equal', 'notEqual', 'ilike', 'like', 'gt', 'lt', 'between',
+        'where', 'in', 'notIn', 'date', 'day', 'month', 'year', 'hidden',
+    ];
 
     /**
      * If use id filter.
@@ -59,7 +63,7 @@ class Filter
     /**
      * @var string
      */
-    protected $view = 'admin::grid.filter';
+    protected $view = 'admin::filter.modal';
 
     /**
      * Create a new filter instance.
@@ -70,15 +74,9 @@ class Filter
     {
         $this->model = $model;
 
-        $this->equal($this->model->eloquent()->getKeyName());
-    }
+        $pk = $this->model->eloquent()->getKeyName();
 
-    /**
-     * Use modal to show filter form.
-     */
-    public function useModal()
-    {
-        $this->useModal = true;
+        $this->equal($pk, strtoupper($pk));
     }
 
     /**
@@ -142,7 +140,7 @@ class Filter
      *
      * @return AbstractFilter
      */
-    protected function addFilter(AbstractFilter $filter)
+    public function addFilter(AbstractFilter $filter)
     {
         $filter->setParent($this);
 
@@ -170,6 +168,17 @@ class Filter
     }
 
     /**
+     * @param callable $callback
+     * @param int      $count
+     *
+     * @return bool
+     */
+    public function chunk(callable $callback, $count = 100)
+    {
+        return $this->model->addConditions($this->conditions())->chunk($callback, $count);
+    }
+
+    /**
      * Get the string contents of the filter view.
      *
      * @return \Illuminate\View\View|string
@@ -184,10 +193,7 @@ class Filter
             return '';
         }
 
-        if ($this->useModal) {
-            $this->view = 'admin::filter.modal';
-
-            $script = <<<'EOT'
+        $script = <<<'EOT'
 
 $("#filter-modal .submit").click(function () {
     $("#filter-modal").modal('toggle');
@@ -196,8 +202,7 @@ $("#filter-modal .submit").click(function () {
 });
 
 EOT;
-            Admin::script($script);
-        }
+        Admin::script($script);
 
         return view($this->view)->with([
             'action'    => $this->action ?: $this->urlWithoutFilters(),
@@ -238,16 +243,17 @@ EOT;
      * @param string $method
      * @param array  $arguments
      *
-     * @return $this
+     * @return AbstractFilter|$this
      */
     public function __call($method, $arguments)
     {
         if (in_array($method, $this->supports)) {
             $className = '\\Encore\\Admin\\Grid\\Filter\\'.ucfirst($method);
-            $reflection = new ReflectionClass($className);
 
-            return $this->addFilter($reflection->newInstanceArgs($arguments));
+            return $this->addFilter(new $className(...$arguments));
         }
+
+        return $this;
     }
 
     /**

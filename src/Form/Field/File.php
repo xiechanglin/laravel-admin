@@ -16,7 +16,7 @@ class File extends Field
      * @var array
      */
     protected static $css = [
-        '/packages/admin/bootstrap-fileinput/css/fileinput.min.css?v=4.3.7',
+        '/vendor/laravel-admin/bootstrap-fileinput/css/fileinput.min.css?v=4.3.7',
     ];
 
     /**
@@ -25,8 +25,8 @@ class File extends Field
      * @var array
      */
     protected static $js = [
-        '/packages/admin/bootstrap-fileinput/js/plugins/canvas-to-blob.min.js?v=4.3.7',
-        '/packages/admin/bootstrap-fileinput/js/fileinput.min.js?v=4.3.7',
+        '/vendor/laravel-admin/bootstrap-fileinput/js/plugins/canvas-to-blob.min.js?v=4.3.7',
+        '/vendor/laravel-admin/bootstrap-fileinput/js/fileinput.min.js?v=4.3.7',
     ];
 
     /**
@@ -57,6 +57,14 @@ class File extends Field
      */
     public function getValidator(array $input)
     {
+        if (request()->has(static::FILE_DELETE_FLAG)) {
+            return false;
+        }
+
+        if ($this->validator) {
+            return $this->validator->call($this, $input);
+        }
+
         /*
          * If has original value, means the form is in edit mode,
          * then remove required rule from rules.
@@ -65,10 +73,10 @@ class File extends Field
             $this->removeRule('required');
         }
 
-        /**
+        /*
          * Make input data validatable if the column data is `null`.
          */
-        if (array_has($input, $this->column) && is_null($input[$this->column])) {
+        if (array_has($input, $this->column) && is_null(array_get($input, $this->column))) {
             $input[$this->column] = '';
         }
 
@@ -81,7 +89,7 @@ class File extends Field
         $rules[$this->column] = $fieldRules;
         $attributes[$this->column] = $this->label;
 
-        return Validator::make($input, $rules, [], $attributes);
+        return Validator::make($input, $rules, $this->validationMessages, $attributes);
     }
 
     /**
@@ -113,13 +121,11 @@ class File extends Field
     {
         $this->renameIfExists($file);
 
-        $target = $this->getDirectory().'/'.$this->name;
-
-        $this->storage->put($target, file_get_contents($file->getRealPath()));
+        $path = $this->storage->putFileAs($this->getDirectory(), $file, $this->name);
 
         $this->destroy();
 
-        return $target;
+        return $path;
     }
 
     /**
@@ -164,6 +170,8 @@ class File extends Field
         $this->setupDefaultOptions();
 
         if (!empty($this->value)) {
+            $this->attribute('data-initial-preview', $this->preview());
+
             $this->setupPreviewOptions();
         }
 

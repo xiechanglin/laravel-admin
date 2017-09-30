@@ -1,24 +1,18 @@
 <?php
 
-use Laravel\Dusk\Browser;
-
 class AuthTest extends TestCase
 {
     public function testLoginPage()
     {
-        $this->browse(function (Browser $browser) {
-            $browser->visit('admin/auth/login')
-                ->assertSee('login');
-        });
+        $this->visit('admin/auth/login')
+            ->see('login');
     }
 
     public function testVisitWithoutLogin()
     {
-        $this->browse(function (Browser $browser) {
-            $browser->visit('admin')
-                ->dontSeeIsAuthenticated('admin')
-                ->seePageIs('admin/auth/login');
-        });
+        $this->visit('admin')
+            ->dontSeeIsAuthenticated('admin')
+            ->seePageIs('admin/auth/login');
     }
 
     public function testLogin()
@@ -32,23 +26,22 @@ class AuthTest extends TestCase
             ->seeCredentials($credentials, 'admin')
             ->seeIsAuthenticated('admin')
             ->seePageIs('admin')
-            ->see('Index')
-            ->see('1024')
-            ->see('150%')
-            ->see('2786')
-            ->see('698726')
-            ->see('Tabs')
-            ->see('Radar')
-            ->see('Bar')
-            ->see('Orders')
-            ->see('Polar Area')
-            ->see('Doughnut')
-            ->see('Line')
-            ->see('Table')
-            ->see('Email')
-            ->see('Last Login')
-            ->see('Powered by')
-            ->see('Version');
+            ->see('Dashboard')
+            ->see('Description...')
+
+            ->see('Environment')
+            ->see('PHP version')
+            ->see('Laravel version')
+
+            ->see('Available extensions')
+            ->seeLink('laravel-admin-ext/helpers', 'https://github.com/laravel-admin-extensions/helpers')
+            ->seeLink('laravel-admin-ext/backup', 'https://github.com/laravel-admin-extensions/backup')
+            ->seeLink('laravel-admin-ext/media-manager', 'https://github.com/laravel-admin-extensions/media-manager')
+
+            ->see('Dependencies')
+            ->see('php')
+            ->see('>=7.0.0')
+            ->see('laravel/framework');
 
         $this
             ->see('<span>Admin</span>')
